@@ -1,5 +1,5 @@
 from bs4 import BeautifulSoup, NavigableString
-import requests
+import requests, lxml
 # import ftplib
 import html.parser
 import os
@@ -33,7 +33,7 @@ class MySoup(BeautifulSoup):
         make new Tag (object of BS4) <a> with link and text for this link
         '''
         try:
-            newTag = self.new_tag('a', href=f'''{self._url}'/'{self._menusList.filesMenus[graduation][i]['filename']}''')
+            newTag = self.new_tag('a', href=f'''{self._url}/{self._menusList.filesMenus[graduation][i]['filename']}''')
         except IndexError:
             print('Скорее всего в папке отсутствуют файлы с шаблонным именем')
             raise IndexError
@@ -61,26 +61,36 @@ class MySoup(BeautifulSoup):
                 self._listMenus[i].append(self._makeNewTag(j, graduation))
 
     def _replaceContentsAllInONeFunc(self) -> list:
-        outputList = list()
+        i = 0
 
         for eachResultSet in self._listMenus:
             if i == 0:
-                self.find('div', id='forsoup14').contents = outputList
+                outputList = list()
+
                 for eachTag in eachResultSet:
                     outputList.append(eachTag)
                     outputList.append(self.new_tag('br'))
                     outputList.append(NavigableString('\n'))
+                self.find('div', id='forsoup14').contents = outputList
+
             elif i == 1:
+                outputList = list()
+                for eachTag in eachResultSet:
+
+                    outputList.append(eachTag)
+                    outputList.append(self.new_tag('br'))
+                    outputList.append(NavigableString('\n'))
                 self.find('div', id='forsoup511').contents = outputList
-
-
             i += 1
 
 
 
 
-    def getter(self):
-        return self._listMenus
+
+    def makeOutput(self):
+        self.appendResultSet()
+        self._replaceContentsAllInONeFunc()
+
 
 
 class Menus():
@@ -104,7 +114,7 @@ class Menus():
         outlist = list()
         outdict = {'sm': list(), 'not sm': list()}
         for file in self._listfiles:
-            if file == False:
+            if file == False or self._checkXls(file) == False:
                 continue
 
             year = file[0:4]
@@ -126,6 +136,12 @@ class Menus():
                 outdict['not sm'].append(eachDict)
 
         return outdict
+
+    def _checkXls(self, filename) -> bool:
+        if filename[filename.rindex('.')+1:] == 'xls' or filename[filename.rindex('.')+1:]== 'xlsx':
+            return True
+        else:
+            return False
 
     # def filesfunc(path):
     #     for file in os.listdir(path):
@@ -149,5 +165,9 @@ if __name__ == '__main__':
     listDictFiles = Menus(directory)
 
     soup = MySoup(url, listDictFiles, html, parser)
-    soup.appendResultSet()
-    print(soup.getter())
+
+    soup.makeOutput()
+
+    with open('index.html', 'w', encoding='utf-8') as file:
+        file.write(soup.prettify())
+
