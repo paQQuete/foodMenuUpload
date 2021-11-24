@@ -1,4 +1,4 @@
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString
 import requests
 # import ftplib
 import html.parser
@@ -51,15 +51,33 @@ class MySoup(BeautifulSoup):
         just expand ResultSets
         '''
         graduation = str()
-        for i in (0, len(self._listMenus)):
+        for i in range(0, len(self._listMenus)):
             if i == 0:
                 graduation = 'sm'
             elif i == 1:
                 graduation = 'not sm'
-            for j in range(0, len(self._listMenus[i])):
+
+            for j in range(0, len(self._menusList.filesMenus[graduation])):
                 self._listMenus[i].append(self._makeNewTag(j, graduation))
-                # поправить этот цикл, должен итерироваться столько раз, сколько НОВЫХ файлов. А сейчас итерируется по кол-ву СТАРЫХ файлов (то есть тех файлов, которые уже размещены на странице)
-                self._listMenus[i].append(self.new_tag('br'))
+
+    def _replaceContentsAllInONeFunc(self) -> list:
+        outputList = list()
+
+        for eachResultSet in self._listMenus:
+            if i == 0:
+                self.find('div', id='forsoup14').contents = outputList
+                for eachTag in eachResultSet:
+                    outputList.append(eachTag)
+                    outputList.append(self.new_tag('br'))
+                    outputList.append(NavigableString('\n'))
+            elif i == 1:
+                self.find('div', id='forsoup511').contents = outputList
+
+
+            i += 1
+
+
+
 
     def getter(self):
         return self._listMenus
