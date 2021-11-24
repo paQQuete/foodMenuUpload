@@ -143,16 +143,6 @@ class Menus():
         else:
             return False
 
-    # def filesfunc(path):
-    #     for file in os.listdir(path):
-    #         if os.path.isfile(os.path.join(path, file)):
-    #             yield file
-
-
-class NewTagsToSoupMixin():
-    def newA(self):
-        self.listMenus
-        pass
 
 
 if __name__ == '__main__':
