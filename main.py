@@ -1,15 +1,16 @@
 from bs4 import BeautifulSoup, NavigableString
-import requests, lxml
-# import ftplib
-import html.parser
+import requests, lxml, datetime
+from ftplib import FTP
 import os
+import cred
+
 
 
 class MySoup(BeautifulSoup):
     '''
-    Создаём класс от bs4, метод класса вернёт ResultSet (формат данных bs4);
-    экземпляр этого класса можно расширить новыми html тегами
-    при вызове конструктора формируется ResultSet listMenus
+    Создаём класс от bs4, конструктор формирует список из двух ResultSet с тегами со указанной страницы.
+    В коструктор обязательно нужно передавать url и экземпеляр класса Menus 1 и 2 аргументом (перед аргументами родителя)
+    испрввление экземпляра вызовом методом makeOutput извне, после можно записывать в выходной файл
     '''
 
     def __init__(self, url, menusList, *args, **kwargs):
@@ -76,28 +77,22 @@ class MySoup(BeautifulSoup):
             elif i == 1:
                 outputList = list()
                 for eachTag in eachResultSet:
-
                     outputList.append(eachTag)
                     outputList.append(self.new_tag('br'))
                     outputList.append(NavigableString('\n'))
                 self.find('div', id='forsoup511').contents = outputList
             i += 1
 
-
-
-
-
     def makeOutput(self):
         self.appendResultSet()
         self._replaceContentsAllInONeFunc()
 
 
-
 class Menus():
     def __init__(self, directory):
         '''
-        формируем список файлов в директории вызова данного файла;
-        нужно расширить под изменяемую директорию
+        формируем список файлов xls/xlsx в директории вызова данного файла;
+        *нужно расширить под изменяемую директорию
         '''
         self._listfiles = [file if os.path.isfile(os.path.join(directory, file)) else False for file in
                            os.listdir(directory)]
@@ -138,11 +133,20 @@ class Menus():
         return outdict
 
     def _checkXls(self, filename) -> bool:
-        if filename[filename.rindex('.')+1:] == 'xls' or filename[filename.rindex('.')+1:]== 'xlsx':
+        if filename[filename.rindex('.') + 1:] == 'xls' or filename[filename.rindex('.') + 1:] == 'xlsx':
             return True
         else:
             return False
 
+class MyFTP(FTP):
+    def __init__(self, *args, **kwargs):
+        super(MyFTP, self).__init__(*args, **kwargs)
+        self._navigation()
+
+    def _navigation(self):
+        self.cwd('food')
+
+    def _upload(self):
 
 
 if __name__ == '__main__':
@@ -151,6 +155,9 @@ if __name__ == '__main__':
     html = html.text
     parser = 'lxml'
     directory = '.'
+    backupfile = f'backup_index_{datetime.datetime.now().day}-{datetime.datetime.now().month}-{datetime.datetime.now().year}.html'
+
+
 
     listDictFiles = Menus(directory)
 
@@ -161,3 +168,8 @@ if __name__ == '__main__':
     with open('index.html', 'w', encoding='utf-8') as file:
         file.write(soup.prettify())
 
+    # build instance, login, and move to /food
+    ftp = MyFTP(cred.ftphost, cred.ftplogin, cred.ftppass)
+
+    with open(backupfile, 'wb') as file:
+        ftp.retrbinary('RETR ' + 'index.html', file.write)

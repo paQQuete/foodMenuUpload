@@ -1,3 +1,4 @@
 *.xls
 *.xlsx
-/index.html
+*.html
+/cred.py
