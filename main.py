@@ -5,7 +5,6 @@ import os
 import cred
 
 
-
 class MySoup(BeautifulSoup):
     '''
     Создаём класс от bs4, конструктор формирует список из двух ResultSet с тегами со указанной страницы.
@@ -89,6 +88,7 @@ class MySoup(BeautifulSoup):
 
 
 class Menus():
+
     def __init__(self, directory):
         '''
         формируем список файлов xls/xlsx в директории вызова данного файла;
@@ -97,6 +97,7 @@ class Menus():
         self._listfiles = [file if os.path.isfile(os.path.join(directory, file)) else False for file in
                            os.listdir(directory)]
         self.filesMenus = self.parser()
+        self.listXlsFiles = self._listValidFiles()
 
     def parser(self):
         '''
@@ -133,10 +134,24 @@ class Menus():
         return outdict
 
     def _checkXls(self, filename) -> bool:
-        if filename[filename.rindex('.') + 1:] == 'xls' or filename[filename.rindex('.') + 1:] == 'xlsx':
-            return True
+        if filename:
+
+            if filename[filename.rindex('.') + 1:] == 'xls' or filename[filename.rindex('.') + 1:] == 'xlsx':
+                return True
+            else:
+                return False
         else:
             return False
+
+    def _listValidFiles(self):
+        tmpList = [file if self._checkXls(file) else False for file in self._listfiles]
+        outlist = list()
+        for file in tmpList:
+            if file:
+                outlist.append(file)
+
+        return outlist
+
 
 class MyFTP(FTP):
     def __init__(self, *args, **kwargs):
@@ -146,7 +161,9 @@ class MyFTP(FTP):
     def _navigation(self):
         self.cwd('food')
 
-    def _upload(self):
+    def upload(self, path):
+        with open(path, 'rb+') as fobj:
+            self.storbinary('STOR ' + path, fobj, 1024)
 
 
 if __name__ == '__main__':
@@ -156,8 +173,6 @@ if __name__ == '__main__':
     parser = 'lxml'
     directory = '.'
     backupfile = f'backup_index_{datetime.datetime.now().day}-{datetime.datetime.now().month}-{datetime.datetime.now().year}.html'
-
-
 
     listDictFiles = Menus(directory)
 
@@ -173,3 +188,11 @@ if __name__ == '__main__':
 
     with open(backupfile, 'wb') as file:
         ftp.retrbinary('RETR ' + 'index.html', file.write)
+
+    # make list of upload files
+    listFiles = listDictFiles.listXlsFiles
+    listFiles.append('index.html')
+
+    # upload each file
+    for file in listFiles:
+        ftp.upload(file)
