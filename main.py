@@ -162,7 +162,7 @@ class MyFTP(FTP):
         self.cwd('food')
 
     def upload(self, path):
-        with open(path, 'rb+') as fobj:
+        with open(path, 'rb') as fobj:
             self.storbinary('STOR ' + path, fobj, 1024)
 
 
