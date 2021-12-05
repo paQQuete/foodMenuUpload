@@ -4,6 +4,8 @@ from ftplib import FTP
 import os
 import cred
 
+DEBUG = True
+
 '''
 запускать из папки, где лежат только НОВЫЕ таблицы на залив, иначе будут дубли
 данные для подключения по ftp в cred.py
@@ -11,6 +13,7 @@ import cred
 feature:
 сделать проверку на дубли, чтобы избежать ситуаций, когда в папке программы скапливаются старые, уже залитые файлы
 '''
+
 
 class MySoup(BeautifulSoup):
     '''
@@ -22,6 +25,7 @@ class MySoup(BeautifulSoup):
     def __init__(self, url, menusList, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._listMenus = self._getListMenus()
+        self._existingMenusOnSite = self._getAlreadyExistMenu()
         self._url = url
         self._menusList = menusList
 
@@ -34,6 +38,19 @@ class MySoup(BeautifulSoup):
         q2 = self.find('div', id='forsoup511')
         q2 = q2.find_all('a')
         return [q, q2]
+
+    def _getAlreadyExistMenu(self) -> list:
+        # q2[00].attrs['href']
+        outputLIst = list()
+
+        for eachResultSet in self._listMenus:
+            for eachTag in eachResultSet:
+                href = eachTag.attrs['href']
+                filenameInHref = href[href.rindex('/') + 1:]
+                outputLIst.append(filenameInHref)
+
+        return outputLIst
+
 
     def _makeNewTag(self, i, graduation):
         '''
@@ -174,6 +191,7 @@ class MyFTP(FTP):
 
 
 if __name__ == '__main__':
+
     url = 'http://school17vo.narod.ru/food'
     html = requests.get(url)
     html = html.text
@@ -190,16 +208,18 @@ if __name__ == '__main__':
     with open('index.html', 'w', encoding='utf-8') as file:
         file.write(soup.prettify())
 
-    # build instance, login, and move to /food
-    ftp = MyFTP(cred.ftphost, cred.ftplogin, cred.ftppass)
+    if DEBUG == False:
 
-    with open(backupfile, 'wb') as file:
-        ftp.retrbinary('RETR ' + 'index.html', file.write)
+        # build instance, login, and move to /food
+        ftp = MyFTP(cred.ftphost, cred.ftplogin, cred.ftppass)
 
-    # make list of upload files
-    listFiles = listDictFiles.listXlsFiles
-    listFiles.append('index.html')
+        with open(backupfile, 'wb') as file:
+            ftp.retrbinary('RETR ' + 'index.html', file.write)
 
-    # upload each file
-    for file in listFiles:
-        ftp.upload(file)
+        # make list of upload files
+        listFiles = listDictFiles.listXlsFiles
+        listFiles.append('index.html')
+
+        # upload each file
+        for file in listFiles:
+            ftp.upload(file)
