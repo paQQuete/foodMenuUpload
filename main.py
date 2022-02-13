@@ -5,7 +5,8 @@ from ftplib import FTP
 import os
 import cred
 
-DEBUG = False
+DEBUG = True
+url = 'http://school17vo.narod.ru/food'
 
 '''
 данные для подключения по ftp в cred.py в переменных, 
@@ -217,8 +218,9 @@ class MyFTP(FTP):
 
 
 if __name__ == '__main__':
+    if DEBUG == True:
+        print('DEBUG True')
 
-    url = 'http://school17vo.narod.ru/food'
     html = requests.get(url)
     html = html.text
     parser = 'lxml'
