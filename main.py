@@ -1,10 +1,11 @@
 from bs4 import BeautifulSoup, NavigableString
-import requests, lxml, datetime
+import requests
+import datetime
 from ftplib import FTP
 import os
 import cred
 
-DEBUG = True
+DEBUG = False
 
 '''
 запускать из папки, где лежат только НОВЫЕ таблицы на залив, иначе будут дубли
@@ -18,16 +19,19 @@ feature:
 class MySoup(BeautifulSoup):
     '''
     Создаём класс от bs4, конструктор формирует список из двух ResultSet с тегами со указанной страницы.
-    В коструктор обязательно нужно передавать url и экземпеляр класса Menus 1 и 2 аргументом (перед аргументами родителя)
+    В коструктор обязательно нужно передавать url и экземпеляр класса Menus 1 и 2 аргументом
+    (перед аргументами родителя)
     испрввление экземпляра вызовом методом makeOutput извне, после можно записывать в выходной файл
     '''
 
-    def __init__(self, url, menusList, *args, **kwargs):
+    def __init__(self, pageurl, menusList, listFTPFiles, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._listMenus = self._getListMenus()
+        self._listPageMenus = self._getListMenus()
         self._existingMenusOnSite = self._getAlreadyExistMenu()
-        self._url = url
+        self._url = pageurl
         self._menusList = menusList
+        self._ftpfiles = listFTPFiles
+        self.actionForMenus = self._makeActionsForMenus()
 
     def _getListMenus(self):
         '''
@@ -43,7 +47,7 @@ class MySoup(BeautifulSoup):
         # q2[00].attrs['href']
         outputLIst = list()
 
-        for eachResultSet in self._listMenus:
+        for eachResultSet in self._listPageMenus:
             for eachTag in eachResultSet:
                 href = eachTag.attrs['href']
                 filenameInHref = href[href.rindex('/') + 1:]
@@ -51,6 +55,19 @@ class MySoup(BeautifulSoup):
 
         return outputLIst
 
+    def _makeActionsForMenus(self) -> dict:
+        d = dict()
+        for menu in self._menusList.listXlsFiles:
+            if menu in self._ftpfiles and menu not in self._existingMenusOnSite:
+                d.update({menu: 'just make tag'})
+            elif menu not in self._ftpfiles and menu in self._existingMenusOnSite:
+                d.update({menu: 'just upload'})
+            elif menu in self._ftpfiles and menu in self._existingMenusOnSite:
+                d.update({menu: 'ignore menu'})
+            elif menu not in self._ftpfiles and menu not in self._existingMenusOnSite:
+                d.update({menu: 'default action'})
+
+        return d
 
     def _makeNewTag(self, i, graduation):
         '''
@@ -71,23 +88,26 @@ class MySoup(BeautifulSoup):
 
     def appendResultSet(self):
         '''
-        change _listMenus in instance of this object
+        change _listPageMenus in instance of this object
         just expand ResultSets
         '''
+
         graduation = str()
-        for i in range(0, len(self._listMenus)):
+        for i in range(0, len(self._listPageMenus)):
             if i == 0:
                 graduation = 'sm'
             elif i == 1:
                 graduation = 'not sm'
 
             for j in range(0, len(self._menusList.filesMenus[graduation])):
-                self._listMenus[i].append(self._makeNewTag(j, graduation))
 
-    def _replaceContentsAllInONeFunc(self) -> list:
+                if self.actionForMenus[self._menusList.filesMenus[graduation][j]['filename']] == 'default action':
+                    self._listPageMenus[i].append(self._makeNewTag(j, graduation))
+
+    def _replaceContentsAllInONeFunc(self):
         i = 0
 
-        for eachResultSet in self._listMenus:
+        for eachResultSet in self._listPageMenus:
             if i == 0:
                 outputList = list()
 
@@ -107,6 +127,7 @@ class MySoup(BeautifulSoup):
             i += 1
 
     def makeOutput(self):
+
         self.appendResultSet()
         self._replaceContentsAllInONeFunc()
 
@@ -189,6 +210,12 @@ class MyFTP(FTP):
         with open(path, 'rb') as fobj:
             self.storbinary('STOR ' + path, fobj, 1024)
 
+    def dirfiles(self) -> list:
+        '''
+        list with names of active directory files
+        '''
+        return self.nlst()
+
 
 if __name__ == '__main__':
 
@@ -198,28 +225,64 @@ if __name__ == '__main__':
     parser = 'lxml'
     directory = '.'
     backupfile = f'backup_index_{datetime.datetime.now().day}-{datetime.datetime.now().month}-{datetime.datetime.now().year}.html'
+    listOfIgnores = list()
+    finalListFiles = list()
 
     listDictFiles = Menus(directory)
+    listDirectoryXlsFiles = listDictFiles.listXlsFiles
 
-    soup = MySoup(url, listDictFiles, html, parser)
+    # build instance, login, and move to /food
+    ftp = MyFTP(cred.ftphost, cred.ftplogin, cred.ftppass)
+    listFTPDirectoryFiles = ftp.dirfiles()
+
+    soup = MySoup(url, listDictFiles, listFTPDirectoryFiles, html, parser)
 
     soup.makeOutput()
 
     with open('index.html', 'w', encoding='utf-8') as file:
         file.write(soup.prettify())
 
-    if DEBUG == False:
+    templistFiles = listDictFiles.listXlsFiles
+    for file in templistFiles:
+        if soup.actionForMenus[file] == 'ignore menu':
 
-        # build instance, login, and move to /food
-        ftp = MyFTP(cred.ftphost, cred.ftplogin, cred.ftppass)
+            listOfIgnores.append(templistFiles[templistFiles.index(file)])
+        else:
+            finalListFiles.append(templistFiles[templistFiles.index(file)])
+
+    finalListFiles.append('index.html')
+
+    if DEBUG == False:  # upload files!
 
         with open(backupfile, 'wb') as file:
             ftp.retrbinary('RETR ' + 'index.html', file.write)
 
         # make list of upload files
-        listFiles = listDictFiles.listXlsFiles
-        listFiles.append('index.html')
 
         # upload each file
-        for file in listFiles:
+        for file in finalListFiles:
             ftp.upload(file)
+
+        print('Загружено на сервер:', finalListFiles)
+        print()
+        print('Не загружено, дубли:', listOfIgnores)
+
+'''
+todo
+
+сценарии дублей и прочего
+1 - в папке старые файлы
+    проверка
+        файл из папки присутствует на ФТП И на старнице
+        
+    реализация
+        локальная переменаая в объекте класса (вычисляем значение в конструкторе)
+        со списком имен файлов, которые НЕ нужно добавлять в html 
+        
+    а если проверка всё в одном:
+    
+    если меню из папки нет на ФТП И есть на странице - just upload DONE
+    если меню из папки есть на ФТП И есть на странице - ignore menu DONE
+    если меню из папки нет на фтп и нет на странице - default action DONE
+
+'''
