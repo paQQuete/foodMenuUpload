@@ -8,11 +8,10 @@ import cred
 DEBUG = False
 
 '''
-запускать из папки, где лежат только НОВЫЕ таблицы на залив, иначе будут дубли
-данные для подключения по ftp в cred.py
+данные для подключения по ftp в cred.py в переменных, 
+тип данных строка - ftphost, ftplogin, ftppass (если нет - создать)
 
-feature:
-сделать проверку на дубли, чтобы избежать ситуаций, когда в папке программы скапливаются старые, уже залитые файлы
+
 '''
 
 
@@ -245,7 +244,6 @@ if __name__ == '__main__':
     templistFiles = listDictFiles.listXlsFiles
     for file in templistFiles:
         if soup.actionForMenus[file] == 'ignore menu':
-
             listOfIgnores.append(templistFiles[templistFiles.index(file)])
         else:
             finalListFiles.append(templistFiles[templistFiles.index(file)])
@@ -266,23 +264,3 @@ if __name__ == '__main__':
         print('Загружено на сервер:', finalListFiles)
         print()
         print('Не загружено, дубли:', listOfIgnores)
-
-'''
-todo
-
-сценарии дублей и прочего
-1 - в папке старые файлы
-    проверка
-        файл из папки присутствует на ФТП И на старнице
-        
-    реализация
-        локальная переменаая в объекте класса (вычисляем значение в конструкторе)
-        со списком имен файлов, которые НЕ нужно добавлять в html 
-        
-    а если проверка всё в одном:
-    
-    если меню из папки нет на ФТП И есть на странице - just upload DONE
-    если меню из папки есть на ФТП И есть на странице - ignore menu DONE
-    если меню из папки нет на фтп и нет на странице - default action DONE
-
-'''
