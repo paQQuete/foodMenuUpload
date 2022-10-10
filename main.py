@@ -5,8 +5,9 @@ from ftplib import FTP
 import os
 import cred
 
-DEBUG = True
+DEBUG = False
 url = 'http://school17vo.narod.ru/food'
+urla = '/food'
 
 '''
 данные для подключения по ftp в cred.py в переменных, 
@@ -24,11 +25,12 @@ class MySoup(BeautifulSoup):
     испрввление экземпляра вызовом методом makeOutput извне, после можно записывать в выходной файл
     '''
 
-    def __init__(self, pageurl, menusList, listFTPFiles, *args, **kwargs):
+    def __init__(self, pageurl, urla, menusList, listFTPFiles, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._listPageMenus = self._getListMenus()
         self._existingMenusOnSite = self._getAlreadyExistMenu()
         self._url = pageurl
+        self._urla = urla
         self._menusList = menusList
         self._ftpfiles = listFTPFiles
         self.actionForMenus = self._makeActionsForMenus()
@@ -74,7 +76,7 @@ class MySoup(BeautifulSoup):
         make new Tag (object of BS4) <a> with link and text for this link
         '''
         try:
-            newTag = self.new_tag('a', href=f'''{self._url}/{self._menusList.filesMenus[graduation][i]['filename']}''')
+            newTag = self.new_tag('a', href=f'''{self._urla}/{self._menusList.filesMenus[graduation][i]['filename']}''')
         except IndexError:
             print('Скорее всего в папке отсутствуют файлы с шаблонным именем')
             raise IndexError
@@ -236,12 +238,11 @@ if __name__ == '__main__':
     ftp = MyFTP(cred.ftphost, cred.ftplogin, cred.ftppass)
     listFTPDirectoryFiles = ftp.dirfiles()
 
-    soup = MySoup(url, listDictFiles, listFTPDirectoryFiles, html, parser)
+    soup = MySoup(url, urla, listDictFiles, listFTPDirectoryFiles, html, parser)
 
     soup.makeOutput()
-
     with open('index.html', 'w', encoding='utf-8') as file:
-        file.write(soup.prettify())
+        file.write(str(soup))
 
     templistFiles = listDictFiles.listXlsFiles
     for file in templistFiles:
